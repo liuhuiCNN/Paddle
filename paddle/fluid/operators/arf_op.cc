@@ -52,7 +52,7 @@ std::vector<int64_t> ARFOp::ComputeOutputShape(
       platform::errors::InvalidArgument(
           "The input of Op(ARF) should be a 5-D Tensor. But "
           "received: input's dimension is %u, input's shape is [%s].",
-          input_dims.size(), input_dims));
+          inputweigt_dims.size(), inputweigt_dims));
 
 
   int nOutputPlane = inputweigt_dims[0];
@@ -217,12 +217,17 @@ void ARFOpGrad::InferShape(framework::InferShapeContext* ctx) const {
   int nOrientation = input_weight_dims[2];
   int kH = input_weight_dims[3];
   int kW = input_weight_dims[4];
+  nOutputPlane = nOutputPlane;
+  nInputPlane = nInputPlane;
+  nOrientation = nOrientation;
+  kH = kH;
+  kW = kW;
 
   auto indices_dims = ctx->GetInputDim("Indices");
   int indices_nRotation = indices_dims[3];
 
-  input_weight_dims[0] = int(input_weight_dims[0] / indices_nRotation)
-  input_weight_dims[1] = int(input_weight_dims[1] / nOrientation)
+  input_weight_dims[0] = int(input_weight_dims[0] / indices_nRotation);
+  input_weight_dims[1] = int(input_weight_dims[1] / nOrientation);
   if (ctx->HasOutput(framework::GradVarName("InputWeight"))) {
     ctx->SetOutputDim(framework::GradVarName("InputWeight"), input_weight_dims);
   }
