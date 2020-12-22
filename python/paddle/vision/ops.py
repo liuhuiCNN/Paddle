@@ -773,3 +773,44 @@ class DeformConv2D(Layer):
             groups=self._groups,
             mask=mask)
         return out
+    
+
+def arf(x, indices):
+
+    #cudnn_version = get_cudnn_version()
+    cudnn_version = None
+    use_cudnn = True if (core.is_compiled_with_cuda() and
+                         cudnn_version is not None) else False
+
+    use_mkldnn = core.globals()["FLAGS_use_mkldnn"]
+    mkldnn_data_type = "float32"
+
+    if in_dygraph_mode():
+        out = core.ops.arf(x, indices, 'use_cudnn', use_mkldnn, 'use_mkldnn',
+                use_mkldnn, 'mkldnn_data_type', mkldnn_data_type)
+        return out
+
+    helper = LayerHelper('arf', **locals())
+
+    check_variable_and_dtype(x, 'x', ['float32', 'float64'], 'arf')
+    check_variable_and_dtype(indices, 'indices', ['float32', 'float64'], 'arf')
+
+    out = helper.create_variable_for_type_inference(dtype=x.dtype)
+
+    attrs = {
+        "use_cudnn": use_cudnn,
+        "use_mkldnn": use_mkldnn,
+        "mkldnn_data_type": "float32",
+    }
+
+    helper.append_op(
+        type='arf',
+        inputs={
+            "Input": x,
+            "Indices": indices,
+        },
+        outputs={
+            'Output': out,
+        },
+        attrs=attrs)
+    return out
