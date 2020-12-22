@@ -139,7 +139,7 @@ class CPUARFKernel : public framework::OpKernel<T> {
 
     // TODO: add ARF GRAD CPU kernel
 
-    const T* input_weight_ptr = input_weight_dims->data<T>();
+    const T* input_weight_ptr = input_weight->data<T>();
     const T* indices_ptr = indices->data<T>();
     T* output_ptr = output->mutable_data<T>(context.GetPlace());
 

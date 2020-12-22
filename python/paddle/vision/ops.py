@@ -792,8 +792,8 @@ def arf(x, indices):
 
     helper = LayerHelper('arf', **locals())
 
-    check_variable_and_dtype(x, 'x', ['float32', 'float64'], 'arf')
-    check_variable_and_dtype(indices, 'indices', ['float32', 'float64'], 'arf')
+    check_variable_and_dtype(x, 'InputWeight', ['float32', 'float64'], 'arf')
+    check_variable_and_dtype(indices, 'Indices', ['float32', 'float64'], 'arf')
 
     out = helper.create_variable_for_type_inference(dtype=x.dtype)
 
@@ -806,7 +806,7 @@ def arf(x, indices):
     helper.append_op(
         type='arf',
         inputs={
-            "Input": x,
+            "InputWeight": x,
             "Indices": indices,
         },
         outputs={
