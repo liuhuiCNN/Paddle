@@ -204,6 +204,11 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     int indices_kH = indices_dims[1];
     int indices_kW = indices_dims[2];
     int indices_nRotation = indices_dims[3];
+    indices_nOrientation = indices_nOrientation;
+    indices_kH = indices_kH;
+    indices_kW = indices_kW;
+    int nRotation = indices_nRotation;
+
     
     // dout
     auto dout_dims = dout->dims();
