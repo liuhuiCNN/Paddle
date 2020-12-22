@@ -99,7 +99,7 @@ template <typename DeviceContext, typename T>
 class CPUARFKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& context) const override {
-    auto* input = context.Input<Tensor>("Input");
+    auto* input_weight = context.Input<Tensor>("InputWeight");
     auto* indices = context.Input<Tensor>("Indices");
     auto* output = context.Output<Tensor>("Output");
     output->mutable_data<T>(context.GetPlace());
@@ -109,12 +109,12 @@ class CPUARFKernel : public framework::OpKernel<T> {
 
 
     // input size
-    auto input_dims = input->dims();;
-    int nOutputPlane = input_dims[0];
-    int nInputPlane = input_dims[1];
-    int nOrientation = input_dims[2];
-    int kH = input_dims[3];
-    int kW = input_dims[4];
+    auto input_weight_dims = input_weight->dims();;
+    int nOutputPlane = input_weight_dims[0];
+    int nInputPlane = input_weight_dims[1];
+    int nOrientation = input_weight_dims[2];
+    int kH = input_weight_dims[3];
+    int kW = input_weight_dims[4];
     nOutputPlane = nOutputPlane;
     nInputPlane = nInputPlane;
     nOrientation = nOrientation;
@@ -139,7 +139,7 @@ class CPUARFKernel : public framework::OpKernel<T> {
 
     // TODO: add ARF GRAD CPU kernel
 
-    const T* input_ptr = input->data<T>();
+    const T* input_weight_ptr = input_weight_dims->data<T>();
     const T* indices_ptr = indices->data<T>();
     T* output_ptr = output->mutable_data<T>(context.GetPlace());
 
@@ -153,7 +153,7 @@ class CPUARFKernel : public framework::OpKernel<T> {
                 int weightIndex = i * nInputPlane * nEntry
                             + j * nEntry
                             + l;
-                T val = *(input_ptr + weightIndex);
+                T val = *(input_weight_ptr + weightIndex);
                 // T val = *(weightData++);
                 for (k = 0; k < nRotation; k++) {
                 //int index = (uint16)(*(indicesData + l * nRotation + k)) - 1;
@@ -210,10 +210,10 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
 
     
     // dout
-    auto dout_dims = dout->dims();
+    //auto dout_dims = dout->dims();
 
     // d_input_weight
-    dinput_weight_dims = dinput_weight->dims();
+    //auto dinput_weight_dims = dinput_weight->dims();
     
     int nEntry = nOrientation * kH * kW;
 
