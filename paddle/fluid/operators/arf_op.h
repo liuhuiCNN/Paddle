@@ -62,9 +62,9 @@ class ARFOp : public framework::OperatorWithKernel {
   void InferShape(framework::InferShapeContext* ctx) const override {
     std::vector<int64_t> output_shape = ComputeOutputShape(ctx);
 
-    OP_INOUT_CHECK(ctx->HasOutput("Output"), "Output", "Output", "Conv");
+    OP_INOUT_CHECK(ctx->HasOutput("Output"), "Output", "Output", "ARF");
     ctx->SetOutputDim("Output", framework::make_ddim(output_shape));
-    ctx->ShareLoD("Input", "Output");
+    ctx->ShareLoD("InputWeight", "Output");
   }
 
  protected:
@@ -78,6 +78,7 @@ class ARFOp : public framework::OperatorWithKernel {
       const std::string& var_name, const Tensor& tensor,
       const framework::OpKernelType& expected_kernel_type) const override;
 };
+
 
 class ARFOpGrad : public framework::OperatorWithKernel {
  public:
@@ -112,8 +113,8 @@ class CPUARFKernel : public framework::OpKernel<T> {
     int nOutputPlane = input_dims[0];
     int nInputPlane = input_dims[1];
     int nOrientation = input_dims[2];
-    int kH = input_dims[4];
-    int kW = input_dims[5];
+    int kH = input_dims[3];
+    int kW = input_dims[4];
     nOutputPlane = nOutputPlane;
     nInputPlane = nInputPlane;
     nOrientation = nOrientation;
@@ -136,44 +137,36 @@ class CPUARFKernel : public framework::OpKernel<T> {
     nRotation = nRotation;
     //printf('%d %d %d %d %d %d', nOutputPlane, nInputPlane, nOrientation, kH, kW, nRotation)
 
-
-    //Tensor transformed_input(input->type());
-    //Tensor transformed_output(output->type());
-
-    //transformed_input = *input;
-    //transformed_output = *output;
-    // TODO: add ARF CPU kernel
+    // TODO: add ARF GRAD CPU kernel
 
     const T* input_ptr = input->data<T>();
     const T* indices_ptr = indices->data<T>();
-    T* o_ptr = output->mutable_data<T>(context.GetPlace());
-
-    //input_ptr = input_ptr;
+    T* output_ptr = output->mutable_data<T>(context.GetPlace());
 
     int i, j, l;
     int k;
     const int nEntry = nOrientation * kH * kW;
     //#pragma omp parallel for private(i, j, l, k)
-      for (i = 0; i < nOutputPlane; i++) {
+    for (i = 0; i < nOutputPlane; i++) {
         for (j = 0; j < nInputPlane; j++) {
-          for (l = 0; l < nEntry; l++) {
-            int weightIndex = i * nInputPlane * nEntry
-                                + j * nEntry
-                                + l;
-            T val = *(input_ptr + weightIndex);
-            // T val = *(weightData++);
-            for (k = 0; k < nRotation; k++) {
-              //int index = (uint16)(*(indicesData + l * nRotation + k)) - 1;
-              unsigned short int index = (unsigned short int)(*(indices_ptr + l * nRotation + k)) - 1;
-              T *target = o_ptr + i * (nRotation * nInputPlane * nEntry)
-                                    + k * (nInputPlane * nEntry)
-                                    + j * (nEntry)
-                                    + index;
-              *target = val;
+            for (l = 0; l < nEntry; l++) {
+                int weightIndex = i * nInputPlane * nEntry
+                            + j * nEntry
+                            + l;
+                T val = *(input_ptr + weightIndex);
+                // T val = *(weightData++);
+                for (k = 0; k < nRotation; k++) {
+                //int index = (uint16)(*(indicesData + l * nRotation + k)) - 1;
+                unsigned short int index = (unsigned short int)(*(indices_ptr + l * nRotation + k)) - 1;
+                T *target = output_ptr + i * (nRotation * nInputPlane * nEntry)
+                                + k * (nInputPlane * nEntry)
+                                + j * (nEntry)
+                                + index;
+                *target = val;
+                }
             }
-          }
         }
-      }
+    }
     }
 
 };
@@ -184,53 +177,52 @@ template <typename DeviceContext, typename T>
 class CPUARFGradKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& context) const override {
-    auto* input = context.Input<Tensor>("Input");
-    auto* dinput = context.Output<Tensor>(framework::GradVarName("Input"));
-    auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
+    auto* input_weight = context.Input<Tensor>("InputWeight");
     auto* indices = context.Input<Tensor>("Indices");
+    auto* output = context.Input<Tensor>("Output");
 
+    auto* dinput_weight = context.Output<Tensor>(framework::GradVarName("InputWeight"));
+    auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
 
-    const T* input_ptr = input->data<T>();
-    const T* dinput_ptr = dinput->data<T>();
     const T* indices_ptr = indices->data<T>();
+    const T* input_weight_ptr = input_weight->data<T>();
+    const T* dinput_weight_ptr = dinput_weight->data<T>();
     const T* dout_ptr = dout->data<T>();
-    input_ptr = input_ptr;
-    dinput_ptr = dinput_ptr;
-    indices_ptr = indices_ptr;
-    dout_ptr = dout_ptr;
 
-    // input size
-    input = input;
-    input_ptr = input_ptr;
-    //auto input_dims = input->dims();;
 
-    // indices
+    // input_weight dim [nOutputPlane, nInputPlane, nOrientation, kH, kW]
+    auto input_weight_dims = input_weight->dims();
+    int nOutputPlane = input_weight_dims[0];
+    int nInputPlane = input_weight_dims[1];
+    int nOrientation = input_weight_dims[2];
+    int kH = input_weight_dims[3];
+    int kW = input_weight_dims[4];
+
+    // indices dim
     auto indices_dims = indices->dims();
-    int nOrientation = indices_dims[0];
-    int kH = indices_dims[1];
-    int kW = indices_dims[2];
-    int nRotation = indices_dims[3];
+    int indices_nOrientation = indices_dims[0];
+    int indices_kH = indices_dims[1];
+    int indices_kW = indices_dims[2];
+    int indices_nRotation = indices_dims[3];
     
     // dout
     auto dout_dims = dout->dims();
-    const int nOutputPlane = dout_dims[0] / nRotation;
-    const int nInputPlane = dout_dims[0] / nOrientation;
+
+    // d_input_weight
+    dinput_weight_dims = dinput_weight->dims();
     
     int nEntry = nOrientation * kH * kW;
 
     int i, j, l, k;
-    if (dinput)
+    if (dinput_weight)
     {
-        T* dinput_ptr = dinput->mutable_data<T>(context.GetPlace());
-
         for (i = 0; i < nOutputPlane; i++) {
             for (j = 0; j < nInputPlane; j++) {
                 for (l = 0; l < nEntry; l++) {
                     int gradInputIndex = i * nInputPlane * nEntry
                     + j * nEntry
                     + l;
-                    T *val = dinput_ptr + gradInputIndex;
-                    // T *val = gradInputData++;
+                    T *val = dinput_weight_ptr + gradInputIndex;
                     *val = 0;
                     for (k = 0; k < nRotation; k++) {
                     unsigned short int index = (unsigned short int)(*(indices_ptr + l * nRotation + k)) - 1;

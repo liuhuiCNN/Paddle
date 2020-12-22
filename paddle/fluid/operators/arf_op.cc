@@ -35,11 +35,10 @@ namespace operators {
 
 std::vector<int64_t> ARFOp::ComputeOutputShape(
     framework::InferShapeContext* ctx) const {
-  // TODO: HasInput???
-  OP_INOUT_CHECK(ctx->HasInput("Input"), "Input", "Input", "Conv");
-  //OP_INOUT_CHECK(ctx->HasInput("Indices"), "Input", "Filter", "Conv");
+  // check
+  OP_INOUT_CHECK(ctx->HasInput("InputWeight"), "Input", "InputWeight", "ARF");
 
-  auto input_dims = ctx->GetInputDim("Input");
+  auto inputweigt_dims = ctx->GetInputDim("InputWeight");
   auto indices_dims = ctx->GetInputDim("Indices");
   const std::string data_format = ctx->Attrs().Get<std::string>("data_format");
 
@@ -49,18 +48,18 @@ std::vector<int64_t> ARFOp::ComputeOutputShape(
   //                          (data_format == "NHWC" || data_format == "NDHWC");
 
   PADDLE_ENFORCE_EQ(
-      input_dims.size() == 5, true,
+      inputweigt_dims.size() == 5, true,
       platform::errors::InvalidArgument(
           "The input of Op(ARF) should be a 5-D Tensor. But "
           "received: input's dimension is %u, input's shape is [%s].",
           input_dims.size(), input_dims));
 
 
-  int nOutputPlane = input_dims[0];
-  int nInputPlane = input_dims[1];
-  int nOrientation = input_dims[2];
-  int kH = input_dims[3];
-  int kW = input_dims[4];
+  int nOutputPlane = inputweigt_dims[0];
+  int nInputPlane = inputweigt_dims[1];
+  int nOrientation = inputweigt_dims[2];
+  int kH = inputweigt_dims[3];
+  int kW = inputweigt_dims[4];
 
 
   int indices_nOrientation = indices_dims[0];
@@ -79,6 +78,11 @@ std::vector<int64_t> ARFOp::ComputeOutputShape(
       platform::errors::InvalidArgument(
           "kW should == indices_kW"));
 
+  PADDLE_ENFORCE_EQ(
+      nOrientation, indices_nOrientation,
+      platform::errors::InvalidArgument(
+          "nOrientation should == indices_nOrientation"));
+
   // output nOutputPlane * nRotation, nInputPlane * nOrientation, kH, kW
   std::vector<int64_t> output_shape({nOutputPlane * indices_nRotation});
   output_shape.push_back(nInputPlane * nOrientation);
@@ -91,13 +95,11 @@ std::vector<int64_t> ARFOp::ComputeOutputShape(
 framework::OpKernelType ARFOp::GetExpectedKernelType(
   // TODO: update GetExpectedKernelType
     const framework::ExecutionContext& ctx) const {
-  int customized_type_value =
-      framework::OpKernelType::kDefaultCustomizedTypeValue;
+  int customized_type_value = framework::OpKernelType::kDefaultCustomizedTypeValue;
   framework::LibraryType library{framework::LibraryType::kPlain};
   // TODO(pzelazko-intel): enable MKLDNN layout when it's ready
-  auto input_data_type = OperatorWithKernel::IndicateVarDataType(ctx, "Input");
-  std::string data_format =
-      "AnyLayout";  // todo enable data layout when it's ready
+  auto inputweight_data_type = OperatorWithKernel::IndicateVarDataType(ctx, "InputWeight");
+  std::string data_format = "AnyLayout";  // todo enable data layout when it's ready
   framework::DataLayout layout = framework::StringToDataLayout(data_format);
 
 #ifdef PADDLE_WITH_CUDA
@@ -105,69 +107,33 @@ framework::OpKernelType ARFOp::GetExpectedKernelType(
     library = framework::LibraryType::kCUDNN;
   }
 #endif
-#ifdef PADDLE_WITH_MKLDNN
-  if (library == framework::LibraryType::kPlain && this->CanMKLDNNBeUsed(ctx)) {
-    library = framework::LibraryType::kMKLDNN;
-    layout = framework::DataLayout::kMKLDNN;
-    customized_type_value =
-        (input_data_type == framework::DataTypeTrait<int8_t>::DataType() ||
-         input_data_type == framework::DataTypeTrait<uint8_t>::DataType())
-            ? kConvMKLDNNINT8
-            : kConvMKLDNNFP32;
-  }
-#endif
 
-  if (input_data_type != framework::proto::VarType::INT8 &&
-      input_data_type != framework::proto::VarType::UINT8 &&
-      input_data_type != framework::proto::VarType::BF16) {
-    auto filter_data_type = ctx.Input<Tensor>("Filter")->type();
-    PADDLE_ENFORCE_EQ(input_data_type, filter_data_type,
-                      platform::errors::InvalidArgument(
-                          "input and filter data type should be consistent"));
-  }
-  if (input_data_type == framework::proto::VarType::FP16) {
+  /*
+  if (inputweight_data_type == framework::proto::VarType::FP16) {
     PADDLE_ENFORCE_EQ(library, framework::LibraryType::kCUDNN,
                       platform::errors::InvalidArgument(
                           "float16 can only be used when CUDNN is used"));
-  }
+  }*/
 
-  auto type = framework::OpKernelType(input_data_type, ctx.GetPlace(), layout,
-                                      library, customized_type_value);
+  auto type = framework::OpKernelType(inputweight_data_type, ctx.GetPlace(), layout, library, customized_type_value);
   return type;
 }
+
 
 framework::OpKernelType ARFOp::GetKernelTypeForVar(
     const std::string& var_name, const Tensor& tensor,
     const framework::OpKernelType& expected_kernel_type) const {
-#ifdef PADDLE_WITH_MKLDNN
-  // Only input require reshaping, weights and
-  // bias are having shape in NCHW order
-  if ((var_name == "Input") &&
-      (expected_kernel_type.data_layout_ == framework::DataLayout::kMKLDNN) &&
-      (tensor.layout() != framework::DataLayout::kMKLDNN)) {
-    auto attrs = Attrs();
-    auto ar = paddle::framework::AttrReader(attrs);
-    const std::string data_format = ar.Get<std::string>("data_format");
-    auto dl = framework::StringToDataLayout(data_format);
-    // Some models may have intentionally set "AnyLayout" for conv
-    // op. Treat this as NCHW (default data_format value)
-    if (dl != framework::DataLayout::kAnyLayout) {
-      return framework::OpKernelType(expected_kernel_type.data_type_,
-                                     tensor.place(), dl);
-    }
-  }
-#endif
-  return framework::OpKernelType(expected_kernel_type.data_type_,
-                                 tensor.place(), tensor.layout());
+    return framework::OpKernelType(expected_kernel_type.data_type_, tensor.place(), tensor.layout());
 }
+
 
 void ARFOpMaker::Make() {
   AddAttr<bool>("is_test",
                 "(bool, default false) Set to true for inference only, false "
                 "for training. Some layers may run faster when this is true.")
       .SetDefault(false);
-  AddInput("Input",
-           "(Tensor) The input tensor of convolution operator. "
+  AddInput("InputWeight",
+           "(Tensor) The input weight of arf. "
            "The format of input tensor is NCHW or NHWC, where N is batch size, "
            "Input shape [nOutputPlan, nInputPlan, nOrientation, kH, kW]");
   AddInput("Indices",
@@ -218,6 +184,7 @@ framework::OpKernelType ARFOpGrad::GetExpectedKernelType(
   int customized_type_value =
       framework::OpKernelType::kDefaultCustomizedTypeValue;
   framework::LibraryType library_{framework::LibraryType::kPlain};
+
   // TODO(pzelazko-intel): enable MKLDNN layout when it's ready
   std::string data_format = "AnyLayout";
   framework::DataLayout layout_ = framework::StringToDataLayout(data_format);
@@ -227,46 +194,38 @@ framework::OpKernelType ARFOpGrad::GetExpectedKernelType(
     library_ = framework::LibraryType::kCUDNN;
   }
 #endif
-#ifdef PADDLE_WITH_MKLDNN
-  if (library_ == framework::LibraryType::kPlain &&
-      this->CanMKLDNNBeUsed(ctx)) {
-    const std::string data_format = ctx.Attr<std::string>("data_format");
-    library_ = framework::LibraryType::kMKLDNN;
-    layout_ = framework::DataLayout::kMKLDNN;
-    customized_type_value = kConvMKLDNNFP32;
-  }
-#endif
 
   auto type = framework::OpKernelType(
-      OperatorWithKernel::IndicateVarDataType(ctx, "Input"), ctx.GetPlace(),
+      OperatorWithKernel::IndicateVarDataType(ctx, "InputWeight"), ctx.GetPlace(),
       layout_, library_, customized_type_value);
   return type;
 }
 
+
 framework::OpKernelType ARFOpGrad::GetKernelTypeForVar(
     const std::string& var_name, const Tensor& tensor,
     const framework::OpKernelType& expected_kernel_type) const {
-#ifdef PADDLE_WITH_MKLDNN
-  // Only input require reshaping, weights and
-  // bias are having shape in NCHW order
-  if (((var_name == "Input") ||
-       (var_name == framework::GradVarName("Output"))) &&
-      (expected_kernel_type.data_layout_ == framework::DataLayout::kMKLDNN) &&
-      (tensor.layout() != framework::DataLayout::kMKLDNN)) {
-    auto attrs = Attrs();
-    auto ar = paddle::framework::AttrReader(attrs);
-    const std::string data_format = ar.Get<std::string>("data_format");
-    auto dl = framework::StringToDataLayout(data_format);
-    // Some models may have intentionally set "AnyLayout" for pool
-    // op. Treat this as NCHW (default data_format value)
-    if (dl != framework::DataLayout::kAnyLayout) {
-      return framework::OpKernelType(expected_kernel_type.data_type_,
-                                     tensor.place(), dl);
-    }
-  }
-#endif
-  return framework::OpKernelType(expected_kernel_type.data_type_,
+    return framework::OpKernelType(expected_kernel_type.data_type_,
                                  tensor.place(), tensor.layout());
+}
+
+
+void ARFOpGrad::InferShape(framework::InferShapeContext* ctx) const {
+  auto input_weight_dims = ctx->GetInputDim("InputWeight");
+  int nOutputPlane = input_weight_dims[0];
+  int nInputPlane = input_weight_dims[1];
+  int nOrientation = input_weight_dims[2];
+  int kH = input_weight_dims[3];
+  int kW = input_weight_dims[4];
+
+  auto indices_dims = ctx->GetInputDim("Indices");
+  int indices_nRotation = indices_dims[3];
+
+  input_weight_dims[0] = int(input_weight_dims[0] / indices_nRotation)
+  input_weight_dims[1] = int(input_weight_dims[1] / nOrientation)
+  if (ctx->HasOutput(framework::GradVarName("InputWeight"))) {
+    ctx->SetOutputDim(framework::GradVarName("InputWeight"), input_weight_dims);
+  }
 }
 
 
@@ -277,11 +236,12 @@ class ARFGradMaker : public framework::SingleGradOpMaker<T> {
 
   void Apply(GradOpPtr<T> op) const override {
     op->SetType(this->ForwardOpType() + "_grad");
-    op->SetInput("Input", this->Input("Input"));
+    op->SetInput("InputWeight", this->Input("InputWeight"));
     op->SetInput("Indices", this->Input("Indices"));
+    // d_out
     op->SetInput(framework::GradVarName("Output"), this->OutputGrad("Output"));
-
-    op->SetOutput(framework::GradVarName("Input"), this->InputGrad("Input"));
+    // d_inputweight
+    op->SetOutput(framework::GradVarName("InputWeight"), this->InputGrad("InputWeight"));
     op->SetAttrMap(this->Attrs());
   }
 };
