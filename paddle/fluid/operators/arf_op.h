@@ -148,6 +148,8 @@ class CPUARFKernel : public framework::OpKernel<T> {
     const T* indices_ptr = indices->data<T>();
     T* o_ptr = output->mutable_data<T>(context.GetPlace());
 
+    //input_ptr = input_ptr;
+
     int i, j, l;
     int k;
     const int nEntry = nOrientation * kH * kW;
@@ -189,22 +191,28 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
 
 
     const T* input_ptr = input->data<T>();
+    const T* indices_ptr = indices->data<T>();
     const T* dout_ptr = dout->data<T>();
 
 
     // input size
-    auto input_dims = input->dims();;
-    int nOutputPlane = input_dims[0];
-    int nInputPlane = input_dims[1];
-    int nOrientation = input_dims[2];
-    int kH = input_dims[4];
-    int kW = input_dims[5];
-    nOutputPlane = nOutputPlane;
-    nInputPlane = nInputPlane;
-    nOrientation = nOrientation;
-    kH = kH;
-    kW = kW;
+    input = input;
+    input_ptr = input_ptr;
+    //auto input_dims = input->dims();;
 
+    // indices
+    auto indices_dims = indices->dims();
+    int nOrientation = indices_dims[0];
+    int kH = indices_dims[1];
+    int kW = indices_dims[2];
+    int nRotation = indices_dims[3];
+    
+    // dout
+    auto dout_dims = dout->dims();
+    const int nOutputPlane = dout_dims[0] / nRotation;
+    const int nInputPlane = dout_dims[0] / nOrientation;
+    
+    int nEntry = nOrientation * kH * kW;
 
     int i, j, l, k;
     if (dinput) {
@@ -216,11 +224,11 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
           int gradInputIndex = i * nInputPlane * nEntry
                                   + j * nEntry
                                   + l;
-          T *val = input_ptr + gradInputIndex;
+          T *val = dinput_ptr + gradInputIndex;
           // T *val = gradInputData++;
           *val = 0;
           for (k = 0; k < nRotation; k++) {
-            uint16 index = (uint16)(*(indicesData + l * nRotation + k)) - 1;
+            unsigned short int index = (unsigned short int)(*(indices_ptr + l * nRotation + k)) - 1;
             const T *target = dout_ptr + i * (nRotation * nInputPlane * nEntry)
                                             + k * (nInputPlane * nEntry)
                                             + j * (nEntry)
@@ -234,7 +242,6 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
 
     }
 
-  }
 };
 
 
