@@ -191,9 +191,13 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
 
 
     const T* input_ptr = input->data<T>();
+    const T* dinput_ptr = dinput->data<T>();
     const T* indices_ptr = indices->data<T>();
     const T* dout_ptr = dout->data<T>();
-
+    input_ptr = input_ptr;
+    dinput_ptr = dinput_ptr;
+    indices_ptr = indices_ptr;
+    dout_ptr = dout_ptr;
 
     // input size
     input = input;
@@ -215,34 +219,36 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     int nEntry = nOrientation * kH * kW;
 
     int i, j, l, k;
-    if (dinput) {
-      T* dinput_ptr = dinput->mutable_data<T>(context.GetPlace());
+    if (dinput)
+    {
+        T* dinput_ptr = dinput->mutable_data<T>(context.GetPlace());
 
-      for (i = 0; i < nOutputPlane; i++) {
-      for (j = 0; j < nInputPlane; j++) {
-        for (l = 0; l < nEntry; l++) {
-          int gradInputIndex = i * nInputPlane * nEntry
-                                  + j * nEntry
-                                  + l;
-          T *val = dinput_ptr + gradInputIndex;
-          // T *val = gradInputData++;
-          *val = 0;
-          for (k = 0; k < nRotation; k++) {
-            unsigned short int index = (unsigned short int)(*(indices_ptr + l * nRotation + k)) - 1;
-            const T *target = dout_ptr + i * (nRotation * nInputPlane * nEntry)
-                                            + k * (nInputPlane * nEntry)
-                                            + j * (nEntry)
-                                            + index;
-            *val = *val + *target;
-              }
+        for (i = 0; i < nOutputPlane; i++) {
+            for (j = 0; j < nInputPlane; j++) {
+                for (l = 0; l < nEntry; l++) {
+                    int gradInputIndex = i * nInputPlane * nEntry
+                    + j * nEntry
+                    + l;
+                    T *val = dinput_ptr + gradInputIndex;
+                    // T *val = gradInputData++;
+                    *val = 0;
+                    for (k = 0; k < nRotation; k++) {
+                    unsigned short int index = (unsigned short int)(*(indices_ptr + l * nRotation + k)) - 1;
+                    const T *target = dout_ptr + i * (nRotation * nInputPlane * nEntry)
+                    + k * (nInputPlane * nEntry)
+                    + j * (nEntry)
+                    + index;
+                    *val = *val + *target;
+                    }
+                }
             }
-          }
         }
-      }
-
     }
 
+  }
+
 };
+
 
 
 }  // namespace operators
