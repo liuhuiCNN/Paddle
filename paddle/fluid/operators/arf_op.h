@@ -182,18 +182,59 @@ template <typename DeviceContext, typename T>
 class CPUARFGradKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& context) const override {
-    const Tensor* input = context.Input<Tensor>("Input");
-    const Tensor* output_grad = context.Input<Tensor>(framework::GradVarName("Output"));
-    Tensor* input_grad = context.Output<Tensor>(framework::GradVarName("Input"));
-    // The filter and filter_grad will be reshaped in the calculations,
-    // so here use an assignment operation,
-    // that avoids modifying the variable in the Scope.
+    auto* input = context.Input<Tensor>("Input");
+    auto* dinput = context.Output<Tensor>(framework::GradVarName("Input"));
+    auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
+    auto* indices = context.Input<Tensor>("Indices");
 
-    input = input;
-    output_grad = output_grad;
-    input_grad = input_grad;
+
+    const T* input_ptr = input->data<T>();
+    const T* dout_ptr = dout->data<T>();
+
+
+    // input size
+    auto input_dims = input->dims();;
+    int nOutputPlane = input_dims[0];
+    int nInputPlane = input_dims[1];
+    int nOrientation = input_dims[2];
+    int kH = input_dims[4];
+    int kW = input_dims[5];
+    nOutputPlane = nOutputPlane;
+    nInputPlane = nInputPlane;
+    nOrientation = nOrientation;
+    kH = kH;
+    kW = kW;
+
+
+    int i, j, l, k;
+    if (dinput) {
+      T* dinput_ptr = dinput->mutable_data<T>(context.GetPlace());
+
+      for (i = 0; i < nOutputPlane; i++) {
+      for (j = 0; j < nInputPlane; j++) {
+        for (l = 0; l < nEntry; l++) {
+          int gradInputIndex = i * nInputPlane * nEntry
+                                  + j * nEntry
+                                  + l;
+          T *val = input_ptr + gradInputIndex;
+          // T *val = gradInputData++;
+          *val = 0;
+          for (k = 0; k < nRotation; k++) {
+            uint16 index = (uint16)(*(indicesData + l * nRotation + k)) - 1;
+            const T *target = dout_ptr + i * (nRotation * nInputPlane * nEntry)
+                                            + k * (nInputPlane * nEntry)
+                                            + j * (nEntry)
+                                            + index;
+            *val = *val + *target;
+              }
+            }
+          }
+        }
+      }
 
     }
+
+  }
 };
 
 

@@ -278,6 +278,7 @@ class ARFGradMaker : public framework::SingleGradOpMaker<T> {
   void Apply(GradOpPtr<T> op) const override {
     op->SetType(this->ForwardOpType() + "_grad");
     op->SetInput("Input", this->Input("Input"));
+    op->SetInput("Indices", this->Input("Indices"));
     op->SetInput(framework::GradVarName("Output"), this->OutputGrad("Output"));
 
     op->SetOutput(framework::GradVarName("Input"), this->InputGrad("Input"));
