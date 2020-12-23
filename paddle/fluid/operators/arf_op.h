@@ -49,7 +49,7 @@ class ARFOpInferVarType : public framework::PassInDtypeAndVarTypeToOutput {
   std::unordered_map<std::string, std::string>& GetInputOutputWithSameType()
       const override {
     static std::unordered_map<std::string, std::string> m{
-        {"Input", /*->*/ "Output"}};
+        {"InputWeight", /*->*/ "Output"}};
     return m;
   }
 };
