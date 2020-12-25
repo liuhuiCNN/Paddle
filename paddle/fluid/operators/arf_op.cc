@@ -256,10 +256,16 @@ class ARFGradMaker : public framework::SingleGradOpMaker<T> {
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-REGISTER_OPERATOR(arf, ops::ARFOp, ops::ARFOpMaker,
+REGISTER_OPERATOR(arf, ops::ARFOp,
+                  ops::ARFOpMaker,
                   ops::ARFOpInferVarType,
                   ops::ARFGradMaker<paddle::framework::OpDesc>,
                   ops::ARFGradMaker<paddle::imperative::OpBase>);
+
+REGISTER_OPERATOR(arf_grad, ops::ARFOpGrad,
+                  ops::ARFGradMaker<paddle::framework::OpDesc>,
+                  ops::ARFGradMaker<paddle::imperative::OpBase>);
+
 
 REGISTER_OP_CPU_KERNEL(
     arf, ops::CPUARFKernel<paddle::platform::CPUDeviceContext, float>,
