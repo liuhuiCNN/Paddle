@@ -180,6 +180,7 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     auto* input_weight = context.Input<Tensor>("InputWeight");
     auto* indices = context.Input<Tensor>("Indices");
     //auto* output = context.Input<Tensor>("Output");
+    input_weight->mutable_data<T>(context.GetPlace());
 
     auto* dinput_weight = context.Output<Tensor>(framework::GradVarName("InputWeight"));
     auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
