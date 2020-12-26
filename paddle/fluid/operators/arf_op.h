@@ -179,15 +179,13 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
   void Compute(const framework::ExecutionContext& context) const override {
     auto* input_weight = context.Input<Tensor>("InputWeight");
     auto* indices = context.Input<Tensor>("Indices");
-    //auto* output = context.Input<Tensor>("Output");
-    input_weight->mutable_data<T>(context.GetPlace());
 
     auto* dinput_weight = context.Output<Tensor>(framework::GradVarName("InputWeight"));
     auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
 
+    const T* input_weight_ptr = input_weight->data<T>();
     const T* indices_ptr = indices->data<T>();
-    auto* dinput_weight_ptr = dinput_weight->data<T>();
-    auto* dout_ptr = dout->data<T>();
+    const T* dout_ptr = dout->data<T>();
 
 
     // input_weight dim [nOutputPlane, nInputPlane, nOrientation, kH, kW]
@@ -219,8 +217,9 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     int nEntry = nOrientation * kH * kW;
 
     int i, j, l, k;
-    if (dinput_weight_ptr)
+    if (dinput_weight)
     {
+        T* dinput_weight_ptr = dinput_weight->mutable_data<T>(context.GetPlace());
         for (i = 0; i < nOutputPlane; i++) {
             for (j = 0; j < nInputPlane; j++) {
                 for (l = 0; l < nEntry; l++) {
