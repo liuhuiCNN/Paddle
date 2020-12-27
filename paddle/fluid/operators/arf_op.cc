@@ -226,8 +226,10 @@ void ARFOpGrad::InferShape(framework::InferShapeContext* ctx) const {
   auto indices_dims = ctx->GetInputDim("Indices");
   int indices_nRotation = indices_dims[3];
 
-  input_weight_dims[0] = int(input_weight_dims[0] / indices_nRotation);
-  input_weight_dims[1] = int(input_weight_dims[1] / nOrientation);
+
+  printf("debug input_weight_dims %d %d nOrientation %d ro %d\n", int(input_weight_dims[0]), int(input_weight_dims[1]), indices_nRotation, nOrientation);
+  //input_weight_dims[0] = int(1.0 * input_weight_dims[0] / indices_nRotation);
+  //input_weight_dims[1] = int(1.0 * input_weight_dims[1] / nOrientation);
   if (ctx->HasOutput(framework::GradVarName("InputWeight"))) {
     ctx->SetOutputDim(framework::GradVarName("InputWeight"), input_weight_dims);
   }
@@ -262,9 +264,9 @@ REGISTER_OPERATOR(arf, ops::ARFOp,
                   ops::ARFGradMaker<paddle::framework::OpDesc>,
                   ops::ARFGradMaker<paddle::imperative::OpBase>);
 
-REGISTER_OPERATOR(arf_grad, ops::ARFOpGrad,
-                  ops::ARFGradMaker<paddle::framework::OpDesc>,
-                  ops::ARFGradMaker<paddle::imperative::OpBase>);
+REGISTER_OPERATOR(arf_grad, ops::ARFOpGrad);//,
+                  //ops::ARFGradMaker<paddle::framework::OpDesc>,
+                  //ops::ARFGradMaker<paddle::imperative::OpBase>);
 
 
 REGISTER_OP_CPU_KERNEL(

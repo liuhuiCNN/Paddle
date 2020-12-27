@@ -179,16 +179,14 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
   void Compute(const framework::ExecutionContext& context) const override {
     auto* input_weight = context.Input<Tensor>("InputWeight");
     auto* indices = context.Input<Tensor>("Indices");
-    //auto* output = context.Input<Tensor>("Output");
-    input_weight->mutable_data<T>(context.GetPlace());
 
     auto* dinput_weight = context.Output<Tensor>(framework::GradVarName("InputWeight"));
     auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
 
-    const T* indices_ptr = indices->data<T>();
-    auto* dinput_weight_ptr = dinput_weight->data<T>();
-    auto* dout_ptr = dout->data<T>();
+    printf("xxxx111");
 
+    const T* indices_ptr = indices->data<T>();
+    printf("setp2222");
 
     // input_weight dim [nOutputPlane, nInputPlane, nOrientation, kH, kW]
     auto input_weight_dims = input_weight->dims();
@@ -197,7 +195,13 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     int nOrientation = input_weight_dims[2];
     int kH = input_weight_dims[3];
     int kW = input_weight_dims[4];
+    nOutputPlane = nOutputPlane;
+    nInputPlane = nInputPlane;
+    nOrientation = nOrientation;
+    kH = kH;
+    kW = kW;
 
+    printf("setp333");
     // indices dim
     auto indices_dims = indices->dims();
     int indices_nOrientation = indices_dims[0];
@@ -208,19 +212,30 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     indices_kH = indices_kH;
     indices_kW = indices_kW;
     int nRotation = indices_nRotation;
-
+    nRotation = nRotation;
     
     // dout
     //auto dout_dims = dout->dims();
 
     // d_input_weight
-    //auto dinput_weight_dims = dinput_weight->dims();
-    
+    auto dinput_weight_dims = dinput_weight->dims();
+    printf("\ndinput_weight_dims %d %d %d %d %d\n", int(dinput_weight_dims[0]), int(dinput_weight_dims[1]), int(dinput_weight_dims[2]),  int(dinput_weight_dims[3]), int(dinput_weight_dims[4]) );
+
     int nEntry = nOrientation * kH * kW;
 
+    printf("%d %d %d %d\n",nOutputPlane, nInputPlane, nEntry, kH);
+    //auto dout_dims = dout->dims();
+    //printf("dout_dims %d %d\n", int(dout_dims[0]), int(dout_dims[1]));
     int i, j, l, k;
-    if (dinput_weight_ptr)
+    //nOutputPlane = 1;
+    //nInputPlane = 1;
+    //nEntry = 1;
+    printf("input (dinput_weight) if");
+    if (dinput_weight)
     {
+        auto* dout_ptr = dout->data<T>();
+        //auto* dout_ptr = dout->mutable_data<T>(context.GetPlace());
+	T* dinput_weight_ptr = dinput_weight->mutable_data<T>(context.GetPlace());
         for (i = 0; i < nOutputPlane; i++) {
             for (j = 0; j < nInputPlane; j++) {
                 for (l = 0; l < nEntry; l++) {
@@ -241,7 +256,6 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
             }
         }
     }
-
   }
 
 };
