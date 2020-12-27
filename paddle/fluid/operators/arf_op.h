@@ -184,6 +184,9 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
 
     printf("xxxx111");
+    const T* input_weight_ptr = input_weight->data<T>();
+    const T* indices_ptr = indices->data<T>();
+    const T* dout_ptr = dout->data<T>();
 
     const T* indices_ptr = indices->data<T>();
     printf("setp2222");
