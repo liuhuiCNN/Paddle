@@ -115,6 +115,8 @@ def get_numeric_gradient(place,
     tensor_to_check = scope.find_var(input_to_check).get_tensor()
     tensor_size = product(tensor_to_check.shape())
     tensor_to_check_dtype = tensor_to_check._dtype()
+    #print('input_to_check', input_to_check, 'tensor_to_check_dtype',
+    #        tensor_to_check_dtype)
     if tensor_to_check_dtype == core.VarDesc.VarType.FP32:
         tensor_to_check_dtype = np.float32
     elif tensor_to_check_dtype == core.VarDesc.VarType.FP64:

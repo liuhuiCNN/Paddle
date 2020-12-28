@@ -211,6 +211,12 @@ framework::OpKernelType ARFOpGrad::GetKernelTypeForVar(
 
 
 void ARFOpGrad::InferShape(framework::InferShapeContext* ctx) const {
+  //OP_INOUT_CHECK(ctx->HasInput("X"), "Input", "X", "arf");
+  OP_INOUT_CHECK(ctx->HasInput("InputWeight"), "Input", "InputWeight", "arf");
+
+  OP_INOUT_CHECK(ctx->HasInput(framework::GradVarName("Output")), "Input", "Output@GRAD", "arf");
+
+
   auto input_weight_dims = ctx->GetInputDim("InputWeight");
   int nOutputPlane = input_weight_dims[0];
   int nInputPlane = input_weight_dims[1];
@@ -228,8 +234,7 @@ void ARFOpGrad::InferShape(framework::InferShapeContext* ctx) const {
 
 
   printf("debug input_weight_dims %d %d nOrientation %d ro %d\n", int(input_weight_dims[0]), int(input_weight_dims[1]), indices_nRotation, nOrientation);
-  //input_weight_dims[0] = int(1.0 * input_weight_dims[0] / indices_nRotation);
-  //input_weight_dims[1] = int(1.0 * input_weight_dims[1] / nOrientation);
+  
   if (ctx->HasOutput(framework::GradVarName("InputWeight"))) {
     ctx->SetOutputDim(framework::GradVarName("InputWeight"), input_weight_dims);
   }
@@ -246,6 +251,10 @@ class ARFGradMaker : public framework::SingleGradOpMaker<T> {
     op->SetInput("InputWeight", this->Input("InputWeight"));
     op->SetInput("Indices", this->Input("Indices"));
     // d_out
+    //op->SetInput(framework::GradVarName("Output"), this->OutputGrad("Output"));
+    
+
+    //op->SetInput(framework::GradVarName("Output"), this->Input(framework::GradVarName("Output")));
     op->SetInput(framework::GradVarName("Output"), this->OutputGrad("Output"));
     // d_inputweight
     op->SetOutput(framework::GradVarName("InputWeight"), this->InputGrad("InputWeight"));

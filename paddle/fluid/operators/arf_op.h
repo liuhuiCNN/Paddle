@@ -181,14 +181,14 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     auto* indices = context.Input<Tensor>("Indices");
 
     auto* dinput_weight = context.Output<Tensor>(framework::GradVarName("InputWeight"));
-    auto* dout = context.Input<Tensor>(framework::GradVarName("Out"));
+    auto* dout = context.Input<Tensor>(framework::GradVarName("Output"));
+    //auto* dout = context.Input<Tensor>("DOutput");
 
     printf("xxxx111");
-    const T* input_weight_ptr = input_weight->data<T>();
+    //const T* input_weight_ptr = input_weight->data<T>();
     const T* indices_ptr = indices->data<T>();
-    const T* dout_ptr = dout->data<T>();
+    //const T* dout_ptr = dout->data<T>();
 
-    const T* indices_ptr = indices->data<T>();
     printf("setp2222");
 
     // input_weight dim [nOutputPlane, nInputPlane, nOrientation, kH, kW]
@@ -219,6 +219,9 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     
     // dout
     //auto dout_dims = dout->dims();
+    //printf("dout_dims %d %d %d %d", int(dout_dims[0]), int(dout_dims[1]), int(dout_dims[2]), int(dout_dims[3]));
+
+
 
     // d_input_weight
     auto dinput_weight_dims = dinput_weight->dims();
@@ -227,18 +230,15 @@ class CPUARFGradKernel : public framework::OpKernel<T> {
     int nEntry = nOrientation * kH * kW;
 
     printf("%d %d %d %d\n",nOutputPlane, nInputPlane, nEntry, kH);
-    //auto dout_dims = dout->dims();
-    //printf("dout_dims %d %d\n", int(dout_dims[0]), int(dout_dims[1]));
+    auto dout_dims = dout->dims();
+    printf("dout_dims %d %d %d %d \n", int(dout_dims[0]), int(dout_dims[1]), int(dout_dims[2]), int(dout_dims[3]));
     int i, j, l, k;
-    //nOutputPlane = 1;
-    //nInputPlane = 1;
-    //nEntry = 1;
-    printf("input (dinput_weight) if");
     if (dinput_weight)
     {
         auto* dout_ptr = dout->data<T>();
         //auto* dout_ptr = dout->mutable_data<T>(context.GetPlace());
 	T* dinput_weight_ptr = dinput_weight->mutable_data<T>(context.GetPlace());
+        dout_ptr = dinput_weight_ptr;
         for (i = 0; i < nOutputPlane; i++) {
             for (j = 0; j < nInputPlane; j++) {
                 for (l = 0; l < nEntry; l++) {

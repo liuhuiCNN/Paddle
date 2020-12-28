@@ -23,8 +23,10 @@ from op_test import OpTest
 from paddle.fluid import Program, program_guard
 
 import paddle
+paddle.enable_static()
 paddle.set_device('cpu')
-paddle.disable_static()
+
+
 
 class TestARFOp(OpTest):
     def setUp(self):
@@ -35,17 +37,19 @@ class TestARFOp(OpTest):
         self.use_mkldnn = False
         self.data_format = "AnyLayout"
         self.dtype = np.float64
+        self.no_need_check_grad = True
 
-        input_weight = np.load('/paddle/input.npy')
-        indices = np.load('/paddle/indices.npy')
-        input_weight = input_weight.astype(np.float64)
-        indices = indices.astype(np.float64)
+
+        self.input_weight = np.load('/paddle/input.npy').astype(np.float64)
+        self.indices = np.load('/paddle/indices.npy').astype(np.float64)
+        self.input_weight = self.input_weight.astype(np.float64)
+        self.indices = self.indices.astype(np.float64)
         arf_result = np.load('/paddle/arf_out.npy')
         arf_result = arf_result.astype(self.dtype)
 
         self.inputs = {
-            'InputWeight': OpTest.np_dtype_to_fluid_dtype(input_weight),
-            'Indices': OpTest.np_dtype_to_fluid_dtype(indices)
+            'InputWeight': OpTest.np_dtype_to_fluid_dtype(self.input_weight),
+            'Indices': OpTest.np_dtype_to_fluid_dtype(self.indices)
         }
         self.attrs = {
             "use_cudnn": self.use_cudnn,
@@ -56,6 +60,7 @@ class TestARFOp(OpTest):
 
 
     def dygraph_check(self):
+        paddle.set_device('cpu')
         paddle.disable_static(self.place)
         np_x = np.load('/paddle/input.npy')
         np_x = np_x.astype(np.float64)
@@ -69,24 +74,25 @@ class TestARFOp(OpTest):
         paddle.enable_static()
 
 
-    def test_check_output(self):
-        return True
-        place = core.CUDAPlace(0) if self.has_cuda() else core.CPUPlace()
-        self.check_output_with_place(
-            place, atol=1e-5, check_dygraph=(self.use_mkldnn == False))
+    #def test_check_output(self):
+    #    #place = core.CUDAPlace(0) if self.has_cuda() else core.CPUPlace()
+    #    place = core.CPUPlace()
+    #    self.check_output_with_place(
+    #        place, atol=1e-5, check_dygraph=(self.use_mkldnn == False))
+
 
     def test_check_grad(self):
-        self.check_grad(['InputWeight', 'Indices'], 'Output')
-        return True
-        if self.dtype == np.float16 or (hasattr(self, "no_need_check_grad") and
-                                        self.no_need_check_grad == True):
-            return
-        place = core.CUDAPlace(0)
+        #self.check_grad(['InputWeight', 'Indices'], 'Output')
+        #return True
+        #if self.dtype == np.float16 or (hasattr(self, "no_need_check_grad") and
+        #                                self.no_need_check_grad == True):
+        #    return
+        place = core.CPUPlace()
         self.check_grad_with_place(
             place, {'InputWeight', 'Indices'},
             'Output',
             max_relative_error=0.02,
-            check_dygraph=(self.use_mkldnn == False))
+            check_dygraph=True)
 
 
 if __name__ == '__main__':
