@@ -74,27 +74,6 @@ class TestARFOp(OpTest):
         paddle.enable_static()
 
 
-    #def test_check_output(self):
-    #    #place = core.CUDAPlace(0) if self.has_cuda() else core.CPUPlace()
-    #    place = core.CPUPlace()
-    #    self.check_output_with_place(
-    #        place, atol=1e-5, check_dygraph=(self.use_mkldnn == False))
-
-
-    def test_check_grad(self):
-        #self.check_grad(['InputWeight', 'Indices'], 'Output')
-        #return True
-        #if self.dtype == np.float16 or (hasattr(self, "no_need_check_grad") and
-        #                                self.no_need_check_grad == True):
-        #    return
-        place = core.CPUPlace()
-        self.check_grad_with_place(
-            place, {'InputWeight', 'Indices'},
-            'Output',
-            max_relative_error=0.02,
-            check_dygraph=True)
-
-
 if __name__ == '__main__':
     unittest.main()
 
