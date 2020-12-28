@@ -19,7 +19,7 @@ import numpy as np
 
 import paddle.fluid.core as core
 import paddle.fluid as fluid
-from op_test import OpTest
+from op_test import OpTest, skip_check_grad_ci
 from paddle.fluid import Program, program_guard
 
 import paddle
@@ -27,7 +27,7 @@ paddle.enable_static()
 paddle.set_device('cpu')
 
 
-
+@skip_check_grad_ci(reason="the OP test do not support arf OP!")
 class TestARFOp(OpTest):
     def setUp(self):
         self.__class__.op_type="arf"
